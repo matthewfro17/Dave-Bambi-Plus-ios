@@ -1,0 +1,77 @@
+name: "build-test"
+on: # rebuild any PRs and main branch changes
+  pull_request:
+  push:
+    branches:
+      - master
+
+jobs:
+  build: # make sure build/ci work properly
+    runs-on: macOS-latest
+    timeout-minutes: 30
+    steps:
+    - uses: actions/checkout@v2
+    - uses: Apple-Actions/import-codesign-certs@v1
+      with:
+        p12-file-base64: ${{ secrets.CERTIFICATES_FILE_BASE64 }}
+        p12-password: ${{ secrets.CERTIFICATES_PASSWORD }}
+    - uses: Apple-Actions/download-provisioning-profiles@v1
+      with:
+        bundle-id: codes.orj.Example-iOS
+        issuer-id: ${{ secrets.APPSTORE_ISSUER_ID }}
+        api-key-id: ${{ secrets.APPSTORE_KEY_ID }}
+        api-private-key: ${{ secrets.APPSTORE_PRIVATE_KEY }}
+
+    - name: Setup Haxe
+      uses: krdlab/setup-haxe@master
+       with:
+       haxe-version: latest
+
+    - name: Installing Libraries
+      run: |
+          haxelib install hxcpp > nul
+          haxelib install lime 8.0.0
+          haxelib install openfl
+          haxelib install flixel 5.2.2
+          haxelib run lime setup flixel
+          haxelib run lime setup         
+          haxelib remove flixel-addons
+          haxelib remove flixel-tools
+          haxelib remove flixel-ui
+          haxelib install flixel-tools 1.5.1
+          haxelib install flixel-ui 2.5.0
+          haxelib install flixel-addons 3.0.2
+          haxelib install tjson 1.4.0
+          haxelib install hxjsonast
+          haxelib install hxCodec 2.5.1          
+          haxelib install linc_luajit
+          haxelib install hscript
+          haxelib git hscript-ex https://github.com/ianharrigan/hscript-ex.git
+          haxelib git discord_rpc https://github.com/Aidan63/linc_discord-rpc.git
+          haxelib git hxvm-luajit https://github.com/nebulazorua/hxvm-luajit.git
+          haxelib git faxe https://github.com/uhrobots/faxe.git
+          haxelib git polymod https://github.com/larsiusprime/polymod.git
+          haxelib install hxcpp-debug-server
+          haxelib git hxvlc https://github.com/MAJigsaw77/hxvlc.git --quiet
+          haxelib install extension-androidtools --quiet
+          haxelib list
+     - name: Setup Git hxcpp
+        run: |
+          haxelib git hxcpp https://github.com/HaxeFoundation/hxcpp.git --quiet
+          cd $(haxelib libpath hxcpp)/tools/hxcpp
+          haxe compile.hxml
+          cd ${{github.workspace}}
+      - name: Building
+        run: haxelib run lime build ios -release
+    - name: "#️⃣ Generate Build Number"
+      id: buildnumber
+      uses: einaregilsson/build-number@v2
+      with:
+        token: ${{ secrets.github_token }}
+    - run: ./Build
+    - uses: Apple-Actions/upload-testflight-build@master
+      with:
+        app-path: .build/Artifacts/VsDave.ipa/VsDave.ipa
+        issuer-id: ${{ secrets.APPSTORE_ISSUER_ID }}
+        api-key-id: ${{ secrets.APPSTORE_KEY_ID }}
+        api-private-key: ${{ secrets.APPSTORE_PRIVATE_KEY }}
