@@ -61,8 +61,8 @@ jobs:
           cd $(haxelib libpath hxcpp)/tools/hxcpp
           haxe compile.hxml
           cd ${{github.workspace}}
-      - name: Building
-        run: haxelib run lime build ios -release
+    - name: Building
+      run: haxelib run lime build ios -release
     - name: "#️⃣ Generate Build Number"
       id: buildnumber
       uses: einaregilsson/build-number@v2
